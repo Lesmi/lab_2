@@ -9,60 +9,94 @@ class LayoutPokemonScreen extends StatefulWidget {
   const LayoutPokemonScreen({Key? key}) : super(key: key);
 
   @override
-  State<LayoutPokemonScreen> createState() => _LayoutPokemonScreen();
+  State<LayoutPokemonScreen> createState() => StateLayoutPokemonScreen();
 }
 
-class _LayoutPokemonScreen extends State<LayoutPokemonScreen> {
+class StateLayoutPokemonScreen extends State<LayoutPokemonScreen> {
+  List<String> pokemonTypes = [];
+  String? selectedType;
+  List<Pokemon> allPokemons = [];
+  List<Pokemon> filteredPokemons = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPokemonTypes();
+  }
+
+  Future<void> _fetchPokemonTypes() async {
+    try {
+      final pokemons = await PokeApiService().fetchPokemons();
+      final types = pokemons.map((pokemon) => pokemon.type).toSet().toList();
+      setState(() {
+        allPokemons = pokemons;
+        filteredPokemons = pokemons;
+        pokemonTypes = types;
+      });
+    } catch (error) {
+      print('Error al obtener los tipos de Pokémon: $error');
+    }
+  }
+
+  void _applyFilter() {
+    if (selectedType != null) {
+      filteredPokemons =
+          allPokemons.where((pokemon) => pokemon.type == selectedType).toList();
+    } else {
+      filteredPokemons = allPokemons;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('PokeDex'),
+        actions: [
+          DropdownButton<String>(
+            value: selectedType,
+            items: pokemonTypes.map((type) {
+              return DropdownMenuItem<String>(
+                value: type,
+                child: Text(type),
+              );
+            }).toList(),
+            onChanged: (String? value) {
+              setState(() {
+                selectedType = value;
+                _applyFilter();
+              });
+            },
+          ),
+        ],
       ),
-      // implement the masonry layout
       body: OrientationBuilder(
         builder: (context, orientation) {
           final int crossAxisCount =
               orientation == Orientation.portrait ? 3 : 6;
 
-          return FutureBuilder<List<Pokemon>>(
-            future: PokeApiService().fetchPokemons(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                final pokemons = snapshot.data!;
-                return MasonryGridView.count(
-                  itemCount: pokemons.length,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 30, horizontal: 10),
-                  // the number of columns
-                  crossAxisCount: crossAxisCount,
-                  // vertical gap between two items
-                  mainAxisSpacing: 4,
-                  // horizontal gap between two items
-                  crossAxisSpacing: 4,
-                  itemBuilder: (context, index) {
-                    final pokemon = pokemons[index];
-                    return GridAnimatorWidget(
-                        child: Card(
-                      color:
-                          Colors.transparent, // Remove random background color
-                      child: Column(
-                        children: [
-                          Image.network(
-                            pokemon.imageUrl,
-                            height: Random().nextInt(150) + 50.5,
-                          ),
-                          Text(pokemon.name),
-                        ],
+          return MasonryGridView.count(
+            itemCount: filteredPokemons.length,
+            padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 10),
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+            itemBuilder: (context, index) {
+              final pokemon = filteredPokemons[index];
+              return GridAnimatorWidget(
+                child: Card(
+                  color: Colors.transparent,
+                  child: Column(
+                    children: [
+                      Image.network(
+                        pokemon.imageUrl,
+                        height: Random().nextInt(150) + 50.5,
                       ),
-                    ));
-                  },
-                );
-              } else if (snapshot.hasError) {
-                return Text('Error: ${snapshot.error}');
-              } else {
-                return Center(child: CircularProgressIndicator());
-              }
+                      Text(pokemon.name),
+                    ],
+                  ),
+                ),
+              );
             },
           );
         },
