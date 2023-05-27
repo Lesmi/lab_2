@@ -51,6 +51,7 @@ class StateLayoutPokemonScreen extends State<LayoutPokemonScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.red,
         title: const Text('PokeDex'),
         actions: [
           DropdownButton<String>(
